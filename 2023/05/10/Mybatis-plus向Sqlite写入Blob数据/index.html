@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Mybatis-plus向Sqlite写入Blob数据 | Blacol的个人博客</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="向Sqlite插入BLOB数据 Blob数据本质是字节数组。但Mybatis-plus（简称mp）无法直接插入，因此需要自己重写TypeHandler  创建TypeHandler，这里创建MyTypeHander  重写TypeHandler方法。 重写语法说明  12345678Java public class [handler类名] extends BaseTypeHandler &amp;#1">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Mybatis-plus向Sqlite写入Blob数据">
+<meta property="og:url" content="http://example.com/2023/05/10/Mybatis-plus%E5%90%91Sqlite%E5%86%99%E5%85%A5Blob%E6%95%B0%E6%8D%AE/index.html">
+<meta property="og:site_name" content="Blacol的个人博客">
+<meta property="og:description" content="向Sqlite插入BLOB数据 Blob数据本质是字节数组。但Mybatis-plus（简称mp）无法直接插入，因此需要自己重写TypeHandler  创建TypeHandler，这里创建MyTypeHander  重写TypeHandler方法。 重写语法说明  12345678Java public class [handler类名] extends BaseTypeHandler &amp;#1">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-05-09T16:31:24.000Z">
+<meta property="article:modified_time" content="2023-05-09T16:56:23.846Z">
+<meta property="article:author" content="Blacol">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="mybatis-plus">
+<meta property="article:tag" content="sqlite">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Blacol的个人博客" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Blacol的个人博客</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Suche"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Suche"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="techpost-Mybatis-plus向Sqlite写入Blob数据" class="h-entry article article-type-techpost" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2023/05/10/Mybatis-plus%E5%90%91Sqlite%E5%86%99%E5%85%A5Blob%E6%95%B0%E6%8D%AE/" class="article-date">
+  <time class="dt-published" datetime="2023-05-09T16:31:24.000Z" itemprop="datePublished">2023-05-10</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Mybatis-plus向Sqlite写入Blob数据
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <ol>
+<li><p>向Sqlite插入BLOB数据</p>
+<p>Blob数据本质是字节数组。但Mybatis-plus（简称mp）无法直接插入，因此需要自己重写TypeHandler</p>
+</li>
+<li><p>创建TypeHandler，这里创建MyTypeHander</p>
+</li>
+<li><p>重写TypeHandler方法。</p>
+<p>重写语法说明</p>
+ <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Java public class [handler类名] extends BaseTypeHandler &#123; @Override public void setNonNullParameter(PreparedStatement ps, int i, Java数据类型 parameter, JdbcType jdbcType) throws SQLException &#123;    //…逻辑 &#125;</span><br><span class="line">   </span><br><span class="line">@Override public Java数据类型 getNullableResult(ResultSet rs, String columnName) throws SQLException &#123; &#125;</span><br><span class="line">   </span><br><span class="line">@Override public Java数据类型 getNullableResult(ResultSet rs, int columnIndex) throws SQLException &#123; &#125;</span><br><span class="line">	</span><br><span class="line">@Override public Java数据类型 getNullableResult(CallableStatement cs, int columnIndex) throws SQLException &#123; &#125; &#125;</span><br><span class="line">   </span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>实体类中要在数据库中以blob形式存储的属性的类型是什么就把<code>Java数据类型</code>替换为什么。比如，这里需要将<code>Double[]</code>的数据以blob存储，那么就把<code>Java数据类型</code>改成<code>Double[]</code>。</p>
+<p>那么就以<code>Double[]</code>数据为例来编写<code>MyTypeHander</code>吧</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MyTypeHander</span> <span class="keyword">extends</span> <span class="title class_">BaseTypeHandler</span>&lt;Double[]&gt; &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setNonNullParameter</span><span class="params">(PreparedStatement ps, <span class="type">int</span> i, Double[] parameter, JdbcType jdbcType)</span> <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">      <span class="comment">//我们确定以不带括号的数组存入数据库，数据元素用逗号分割。</span></span><br><span class="line">        StringBuffer stringBuffer=<span class="keyword">new</span> <span class="title class_">StringBuffer</span>();</span><br><span class="line">        <span class="keyword">for</span> (Double d:parameter)&#123;</span><br><span class="line">            stringBuffer.append(d).append(<span class="string">&quot;,&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="type">String</span> <span class="variable">result</span> <span class="operator">=</span> stringBuffer.substring(<span class="number">0</span>,stringBuffer.length()-<span class="number">1</span>);<span class="comment">//将结果拼接成字符串</span></span><br><span class="line">        ps.setString(i,result);<span class="comment">//ps是mybatis-plus正在使用的PreparedStatement，mp使用这个拼接sql语句并执行sql语句，因此，我们将处理完的结果加入到ps中即可。（也可以将result转为byte[]然后通过ps.setBytes把result放入ps中。</span></span><br><span class="line">      <span class="comment">//setString中的i是ps参数索引</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Double[] getNullableResult(ResultSet rs, String columnName) <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">string</span> <span class="operator">=</span> rs.getString(columnName);<span class="comment">//通过getString获取数据集中的指定列的数据，这个columnName就是指定列，往往和使用这个typehander的列一直。</span></span><br><span class="line">        <span class="keyword">return</span> composeFinallyData(string);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * 将使用逗号分割的数组拼成Double[]</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> Double[] composeFinallyData(String string) &#123;</span><br><span class="line">        String[] split = string.split(<span class="string">&quot;,&quot;</span>);</span><br><span class="line">        Double[] doubles=<span class="keyword">new</span> <span class="title class_">Double</span>[split.length];</span><br><span class="line">        <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">0</span>;i&lt;doubles.length;i++)&#123;</span><br><span class="line">            doubles[i]=Double.parseDouble(split[i]);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> doubles;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Double[] getNullableResult(ResultSet rs, <span class="type">int</span> columnIndex) <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">string</span> <span class="operator">=</span> rs.getString(columnIndex);</span><br><span class="line">        <span class="keyword">return</span> composeFinallyData(string);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Double[] getNullableResult(CallableStatement cs, <span class="type">int</span> columnIndex) <span class="keyword">throws</span> SQLException &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">string</span> <span class="operator">=</span> cs.getString(columnIndex);</span><br><span class="line">        <span class="keyword">return</span> composeFinallyData(string);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li><p>使用<code>@TableName</code>和<code>@TableField</code>注解</p>
+<p>定义完Typehandler后还不能被mp所使用，必须在对应的实体类和属性上使用<code>@TableName</code>和<code>@TableField</code>注解才能真正使用TypeHander。</p>
+<p>假如，实体类<code>GameSeason</code>中的<code>seasonDays</code>使用这个handler，则：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@TableName(autoResultMap = true)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">GameSeason</span>&#123;</span><br><span class="line"><span class="keyword">private</span> String id;</span><br><span class="line"><span class="meta">@TableField(typeHandler = MyTypeHander.class)</span></span><br><span class="line"><span class="keyword">private</span> Double[] seasonDays;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>autoResultMap</code>必须为true。对应属性上也必须有<code>@TableField</code>属性才能让mp调用这个handler。</p>
+</li>
+</ol>
+<p>注意：</p>
+<ol>
+<li>Sqlite数据库不支持<code>ps.setBlob</code>和<code>ps.getBlob</code>，因此，如果使用Sqlite数据库网上大多数方法是不能使用的。</li>
+<li>如果使用Mysql数据库可以使用<code>ps.setBlob</code>和<code>ps.getBlob</code></li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2023/05/10/Mybatis-plus%E5%90%91Sqlite%E5%86%99%E5%85%A5Blob%E6%95%B0%E6%8D%AE/" data-id="clhgiko0j00005wt30nfr05jk" data-title="Mybatis-plus向Sqlite写入Blob数据" class="article-share-link">Teilen</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/mybatis-plus/" rel="tag">mybatis-plus</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/sqlite/" rel="tag">sqlite</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2023/05/10/%E5%B0%86%E8%87%AA%E5%B7%B1%E5%86%99%E7%9A%84Jar%E5%8C%85%E4%B8%8A%E4%BC%A0%E5%88%B0Maven%E4%B8%AD%E5%A4%AE%E4%BB%93%E5%BA%93/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Neuer</strong>
+      <div class="article-nav-title">
+        
+          Springboot+Websocket+RabbitMQ的整合
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2023/05/09/Element-plus%E8%A1%A8%E5%8D%95%E9%AA%8C%E8%AF%81%E9%97%AE%E9%A2%98/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Älter</strong>
+      <div class="article-nav-title">Element-plus表单验证问题</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Kategorien</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/element-plus/" rel="tag">element-plus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/" rel="tag">java</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mybatis-plus/" rel="tag">mybatis-plus</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/rabbitMQ/" rel="tag">rabbitMQ</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/springboot/" rel="tag">springboot</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sqlite/" rel="tag">sqlite</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/websocket/" rel="tag">websocket</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/element-plus/" style="font-size: 10px;">element-plus</a> <a href="/tags/java/" style="font-size: 10px;">java</a> <a href="/tags/mybatis-plus/" style="font-size: 10px;">mybatis-plus</a> <a href="/tags/rabbitMQ/" style="font-size: 20px;">rabbitMQ</a> <a href="/tags/springboot/" style="font-size: 20px;">springboot</a> <a href="/tags/sqlite/" style="font-size: 10px;">sqlite</a> <a href="/tags/websocket/" style="font-size: 20px;">websocket</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archiv</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">letzter Beitrag</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2023/05/10/Springboot-Websocket-RabbitMQ%E7%9A%84%E6%95%B4%E5%90%88/">Springboot+Websocket+RabbitMQ的整合</a>
+          </li>
+        
+          <li>
+            <a href="/2023/05/10/%E5%B0%86%E8%87%AA%E5%B7%B1%E5%86%99%E7%9A%84Jar%E5%8C%85%E4%B8%8A%E4%BC%A0%E5%88%B0Maven%E4%B8%AD%E5%A4%AE%E4%BB%93%E5%BA%93/">Springboot+Websocket+RabbitMQ的整合</a>
+          </li>
+        
+          <li>
+            <a href="/2023/05/10/Mybatis-plus%E5%90%91Sqlite%E5%86%99%E5%85%A5Blob%E6%95%B0%E6%8D%AE/">Mybatis-plus向Sqlite写入Blob数据</a>
+          </li>
+        
+          <li>
+            <a href="/2023/05/09/Element-plus%E8%A1%A8%E5%8D%95%E9%AA%8C%E8%AF%81%E9%97%AE%E9%A2%98/">Element-plus表单验证问题</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2023 Blacol<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
